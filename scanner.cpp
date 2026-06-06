@@ -18,11 +18,11 @@ bool is_port_open(const std::string& ip, int port, int timeout_sec) {
         return false;
     }
 
-    // неблокирующий режим
+    // Неблокирующий режим
     int flags = fcntl(sock, F_GETFL, 0);
     fcntl(sock, F_SETFL, flags | O_NONBLOCK);
 
-    // асинхронный connect
+    // Асинхронный connect
     int ret = connect(sock, res->ai_addr, res->ai_addrlen);
     freeaddrinfo(res);
 
@@ -31,7 +31,7 @@ bool is_port_open(const std::string& ip, int port, int timeout_sec) {
         return false;
     }
 
-    // ожидание через select
+    // Ожидание через select
     fd_set fdset;
     FD_ZERO(&fdset);
     FD_SET(sock, &fdset);
@@ -40,32 +40,17 @@ bool is_port_open(const std::string& ip, int port, int timeout_sec) {
     tv.tv_sec = timeout_sec;
     tv.tv_usec = 0;
 
-    ret = select(sock+1, nullptr, &fdset, nullptr, &tv);
+    ret = select(sock + 1, nullptr, &fdset, nullptr, &tv);
     if (ret <= 0) {
         close(sock);
         return false;
     }
 
-    // проверка на ошибку сокета
+    // Проверка ошибки сокета
     int error = 0;
     socklen_t len = sizeof(error);
     getsockopt(sock, SOL_SOCKET, SO_ERROR, &error, &len);
     close(sock);
 
     return (error == 0);
-}
-
-
-int main() {
-    std::string target = "127.0.0.1";
-    std::vector<int> ports = {22, 80, 443, 8000};
-
-    for (int port : ports) {
-        std::cout << "Port " << port << ": ";
-        if (is_port_open(target, port, 1))
-            std::cout << "open\n";
-        else std::cout << "closed\n";
-    }
-
-    return EXIT_SUCCESS;
 }
