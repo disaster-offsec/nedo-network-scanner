@@ -1,1 +1,3 @@
-*.o scanner
+*.o
+report.*
+scanner
