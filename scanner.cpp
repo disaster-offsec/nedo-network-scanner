@@ -1,6 +1,6 @@
 #include "scanner.hpp"
 
-bool is_port_open(const std::string& ip, int port, int timeout_sec) {
+ScanResult is_port_open(const std::string& ip, int port, int timeout_sec) {
     struct addrinfo hints, *res;
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET;         // IPv4
@@ -10,12 +10,12 @@ bool is_port_open(const std::string& ip, int port, int timeout_sec) {
     snprintf(port_str, sizeof(port_str), "%d", port);
 
     if (getaddrinfo(ip.c_str(), port_str, &hints, &res) != 0)
-        return false;
+        return {false, ""};
 
     int sock = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
     if (sock == -1) {
         freeaddrinfo(res);
-        return false;
+        return {false, ""};
     }
 
     // Неблокирующий режим
@@ -28,7 +28,7 @@ bool is_port_open(const std::string& ip, int port, int timeout_sec) {
 
     if (ret == -1 && errno != EINPROGRESS) {
         close(sock);
-        return false;
+        return {false, ""};
     }
 
     // Ожидание через select
@@ -43,14 +43,38 @@ bool is_port_open(const std::string& ip, int port, int timeout_sec) {
     ret = select(sock + 1, nullptr, &fdset, nullptr, &tv);
     if (ret <= 0) {
         close(sock);
-        return false;
+        return {false, ""};
     }
 
     // Проверка ошибки сокета
     int error = 0;
     socklen_t len = sizeof(error);
     getsockopt(sock, SOL_SOCKET, SO_ERROR, &error, &len);
+
+    std::string banner = "";
+
+    // Чтение баннера
+    if (error == 0) {
+        fd_set readfds;
+        FD_ZERO(&readfds);
+        FD_SET(sock, &readfds);
+
+        struct timeval read_tv;
+        read_tv.tv_sec = 0;          // 0 секунд
+        read_tv.tv_usec = 200000;    // 200 000 микросекунд = 200 мс
+
+        int ready = select(sock + 1, &readfds, nullptr, nullptr, &read_tv);
+        if (ready > 0 && FD_ISSET(sock, &readfds)) {
+            char buffer[256];
+            int n = recv(sock, buffer, sizeof(buffer) - 1, MSG_DONTWAIT);
+            if (n > 0) {
+                buffer[n] = '\0';
+                banner = buffer;
+            }
+        }
+    }
+
     close(sock);
 
-    return (error == 0);
+    return {error == 0, banner};
 }

@@ -105,8 +105,8 @@ void ArgsHandler::print_help(const char* progname) const {
               << "  -h, --help            Show this help\n"
               << "\nExamples:\n"
               << "  " << progname << " -t 192.168.1.1 -p 22,80,443\n"
-              << "  " << progname << " --target scanme.nmap.org --ports 1-1000 --threads 50\n";
-              << "  " << progname << " -t 10.0.0.1 -p -               # scan all ports\n";
+              << "  " << progname << " --target scanme.nmap.org --ports 1-1000 --threads 50\n"
+              << "  " << progname << " -t 10.0.0.1 -p -  scan all ports\n";
 }
 
 bool ArgsHandler::is_option(const std::string& arg) const {

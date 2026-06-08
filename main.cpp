@@ -7,22 +7,24 @@
 #include <atomic>
 #include <iomanip>
 #include <chrono>
+#include <algorithm>
 
-struct ScanResult {
+struct PortResult {
     int port;
     bool is_open;
+    std::string banner;
 };
 
 void worker(const std::string& target, const std::vector<int>& ports,
-            int timeout_sec, std::vector<ScanResult>& results,
+            int timeout_sec, std::vector<PortResult>& results,
             std::mutex& mtx, std::atomic<size_t>& next_index) {
     while (true) {
         size_t idx = next_index.fetch_add(1);
         if (idx >= ports.size()) break;
-        bool open = is_port_open(target, ports[idx], timeout_sec);
+        ScanResult scan = is_port_open(target, ports[idx], timeout_sec);
         {
             std::lock_guard<std::mutex> lock(mtx);
-            results[idx] = {ports[idx], open};
+            results[idx] = {ports[idx], scan.is_open, scan.banner};
         }
     }
 }
@@ -40,6 +42,13 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
+    // Ограничение потоков
+    const int MAX_THREADS = 200;
+    if (opts.threads > MAX_THREADS) {
+        std::cerr << "Warning: " << opts.threads << " threads requested, limiting to " << MAX_THREADS << "\n";
+        opts.threads = MAX_THREADS;
+    }
+
     std::cout << "\n=== Scan Configuration ===\n";
     std::cout << "Target:   " << opts.target << "\n";
     std::cout << "Ports:    " << opts.ports.size() << " ports (";
@@ -50,7 +59,7 @@ int main(int argc, char* argv[]) {
     std::cout << "Timeout:  " << opts.timeout_sec << " sec\n";
     std::cout << "Threads:  " << opts.threads << "\n\n";
 
-    std::vector<ScanResult> results(opts.ports.size());
+    std::vector<PortResult> results(opts.ports.size());
     std::mutex results_mutex;
     std::atomic<size_t> next_index(0);
 
@@ -61,7 +70,6 @@ int main(int argc, char* argv[]) {
                              std::ref(results_mutex), std::ref(next_index));
     }
 
-    // Прогресс-бар
     std::atomic<bool> done{false};
     std::thread progress([&]() {
         const size_t total = opts.ports.size();
@@ -84,7 +92,15 @@ int main(int argc, char* argv[]) {
     int open_count = 0;
     for (const auto& res : results) {
         if (res.is_open) {
-            std::cout << "Port " << res.port << " is OPEN\n";
+            std::cout << "Port " << res.port << " is OPEN";
+            if (!res.banner.empty()) {
+                std::string banner = res.banner;
+                banner.erase(std::remove(banner.begin(), banner.end(), '\n'), banner.end());
+                banner.erase(std::remove(banner.begin(), banner.end(), '\r'), banner.end());
+                if (banner.length() > 100) banner = banner.substr(0, 100) + "...";
+                std::cout << " (banner: " << banner << ")";
+            }
+            std::cout << "\n";
             ++open_count;
         }
     }
