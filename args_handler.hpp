@@ -3,6 +3,12 @@
 
 #include <string>
 #include <vector>
+#include <iostream>
+#include <sstream>
+#include <algorithm>
+#include <cctype>
+#include <thread>
+
 
 struct ScanOptions {
     std::string target = "127.0.0.1";

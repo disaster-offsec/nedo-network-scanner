@@ -1,9 +1,4 @@
 #include "args_handler.hpp"
-#include <iostream>
-#include <sstream>
-#include <algorithm>
-#include <cctype>
-#include <thread>
 
 ArgsHandler::ArgsHandler(int argc, char* argv[]) 
     : argc_(argc), argv_(argv) {}
@@ -35,7 +30,15 @@ ScanOptions ArgsHandler::parse() {
                 opts.error_message = "Missing value for " + arg;
                 return opts;
             }
-            opts.ports = parse_port_list(port_spec);
+            if (port_spec == "-") {
+                opts.ports.clear();
+                for (int p = 1; p <= 65535; ++p) {
+                    opts.ports.push_back(p);
+                }
+                std::cout << "[*] Scanning all 65535 ports (this may take a while)\n";
+            } else {
+                opts.ports = parse_port_list(port_spec);
+            }
         }
         else if (arg == "-to" || arg == "--timeout") {
             std::string val = get_value(i, "timeout");
