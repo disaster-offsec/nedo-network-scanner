@@ -106,6 +106,7 @@ void ArgsHandler::print_help(const char* progname) const {
               << "\nExamples:\n"
               << "  " << progname << " -t 192.168.1.1 -p 22,80,443\n"
               << "  " << progname << " --target scanme.nmap.org --ports 1-1000 --threads 50\n";
+              << "  " << progname << " -t 10.0.0.1 -p -               # scan all ports\n";
 }
 
 bool ArgsHandler::is_option(const std::string& arg) const {
@@ -115,7 +116,7 @@ bool ArgsHandler::is_option(const std::string& arg) const {
 std::string ArgsHandler::get_value(int& i, const std::string& opt_name) {
     if (i + 1 >= argc_) return "";
     std::string val = argv_[i+1];
-    if (is_option(val)) return "";
+    if (val != "-" && is_option(val)) return "";
     ++i;
     return val;
 }
