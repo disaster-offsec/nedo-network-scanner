@@ -13,6 +13,7 @@ struct PortResult {
     int port;
     bool is_open;
     std::string banner;
+    std::string os;
 };
 
 void worker(const std::string& target, const std::vector<int>& ports,
@@ -24,7 +25,7 @@ void worker(const std::string& target, const std::vector<int>& ports,
         ScanResult scan = is_port_open(target, ports[idx], timeout_sec);
         {
             std::lock_guard<std::mutex> lock(mtx);
-            results[idx] = {ports[idx], scan.is_open, scan.banner};
+            results[idx] = {ports[idx], scan.is_open, scan.banner, scan.os};
         }
     }
 }
@@ -99,6 +100,10 @@ int main(int argc, char* argv[]) {
                 banner.erase(std::remove(banner.begin(), banner.end(), '\r'), banner.end());
                 if (banner.length() > 100) banner = banner.substr(0, 100) + "...";
                 std::cout << " (banner: " << banner << ")";
+            }
+
+            if (!res.os.empty() && res.os != "Unknown") {
+                std::cout << " [OS: " << res.os << "]";
             }
             std::cout << "\n";
             ++open_count;

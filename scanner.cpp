@@ -1,4 +1,6 @@
 #include "scanner.hpp"
+#include "fingerprint.hpp"
+
 
 ScanResult is_port_open(const std::string& ip, int port, int timeout_sec) {
     struct addrinfo hints, *res;
@@ -45,6 +47,7 @@ ScanResult is_port_open(const std::string& ip, int port, int timeout_sec) {
     getsockopt(sock, SOL_SOCKET, SO_ERROR, &error, &len);
 
     std::string banner = "";
+    std::string os = "";
     if (error == 0) {
         // ШАГ 1: Пытаемся прочитать то, что сервер отправил сразу (SSH, FTP, SMTP)
         fd_set readfds;
@@ -83,8 +86,9 @@ ScanResult is_port_open(const std::string& ip, int port, int timeout_sec) {
                 }
             }
         }
+        os = detect_os_from_socket(sock);
     }
 
     close(sock);
-    return {error == 0, banner};
+    return {error == 0, banner, os};
 }

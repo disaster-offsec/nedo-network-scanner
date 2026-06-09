@@ -19,13 +19,12 @@
 #include <sys/select.h>
 #include <errno.h>
 
-
 struct ScanResult {
   bool is_open;
   std::string banner;
+  std::string os;
 };
-
 
 ScanResult is_port_open(const std::string& ip, int port, int timeout_sec = 2);
 
-#endif // SCANNER_H_
+#endif // SCANNER_HPP

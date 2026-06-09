@@ -1,7 +1,7 @@
 CXX = g++
-CXXFLAGS = -std=c++17 -pthread -O2
+CXXFLAGS = -std=c++17 -pthread -O2 -Wall
 TARGET = scanner
-OBJS = main.o scanner.o args_handler.o
+OBJS = main.o scanner.o args_handler.o fingerprint.o
 
 all: $(TARGET)
 
