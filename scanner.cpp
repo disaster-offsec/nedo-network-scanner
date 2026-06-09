@@ -1,13 +1,4 @@
 #include "scanner.hpp"
-#include <cstring>
-#include <unistd.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <netdb.h>
-#include <fcntl.h>
-#include <sys/select.h>
-#include <errno.h>
 
 ScanResult is_port_open(const std::string& ip, int port, int timeout_sec) {
     struct addrinfo hints, *res;

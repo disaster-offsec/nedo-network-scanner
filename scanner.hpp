@@ -19,6 +19,7 @@
 #include <sys/select.h>
 #include <errno.h>
 
+
 struct ScanResult {
   bool is_open;
   std::string banner;
