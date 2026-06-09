@@ -1,5 +1,6 @@
 #include "scanner.hpp"
 #include "args_handler.hpp"
+#include "export.hpp"
 #include <iostream>
 #include <vector>
 #include <thread>
@@ -8,13 +9,6 @@
 #include <iomanip>
 #include <chrono>
 #include <algorithm>
-
-struct PortResult {
-    int port;
-    bool is_open;
-    std::string banner;
-    std::string os;
-};
 
 void worker(const std::string& target, const std::vector<int>& ports,
             int timeout_sec, std::vector<PortResult>& results,
@@ -43,7 +37,6 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    // Ограничение потоков
     const int MAX_THREADS = 200;
     if (opts.threads > MAX_THREADS) {
         std::cerr << "Warning: " << opts.threads << " threads requested, limiting to " << MAX_THREADS << "\n";
@@ -58,7 +51,11 @@ int main(int argc, char* argv[]) {
     if (opts.ports.size() > 10) std::cout << "...";
     std::cout << ")\n";
     std::cout << "Timeout:  " << opts.timeout_sec << " sec\n";
-    std::cout << "Threads:  " << opts.threads << "\n\n";
+    std::cout << "Threads:  " << opts.threads << "\n";
+    if (!opts.output_file.empty()) {
+        std::cout << "Output:   " << opts.output_file << " (format: " << opts.format << ")\n";
+    }
+    std::cout << "\n";
 
     std::vector<PortResult> results(opts.ports.size());
     std::mutex results_mutex;
@@ -89,10 +86,20 @@ int main(int argc, char* argv[]) {
     done = true;
     progress.join();
 
-    std::cout << "\n=== Open Ports ===\n";
-    int open_count = 0;
+    // Собираем только открытые порты
+    std::vector<PortResult> open_ports;
     for (const auto& res : results) {
         if (res.is_open) {
+            open_ports.push_back(res);
+        }
+    }
+
+    // Вывод в консоль
+    std::cout << "\n=== Open Ports ===\n";
+    if (open_ports.empty()) {
+        std::cout << "No open ports found.\n";
+    } else {
+        for (const auto& res : open_ports) {
             std::cout << "Port " << res.port << " is OPEN";
             if (!res.banner.empty()) {
                 std::string banner = res.banner;
@@ -101,16 +108,32 @@ int main(int argc, char* argv[]) {
                 if (banner.length() > 100) banner = banner.substr(0, 100) + "...";
                 std::cout << " (banner: " << banner << ")";
             }
-
             if (!res.os.empty() && res.os != "Unknown") {
                 std::cout << " [OS: " << res.os << "]";
             }
             std::cout << "\n";
-            ++open_count;
         }
     }
-    if (open_count == 0) std::cout << "No open ports found.\n";
+    std::cout << "\nScan completed. " << open_ports.size() << "/" << opts.ports.size() << " ports open.\n";
 
-    std::cout << "\nScan completed. " << open_count << "/" << opts.ports.size() << " ports open.\n";
+    // Экспорт в файл
+    if (!opts.output_file.empty()) {
+        bool export_success = false;
+        
+        if (opts.format == "json") {
+            export_success = export_to_json(open_ports, opts.output_file, opts.target, opts.ports.size());
+        } else if (opts.format == "csv") {
+            export_success = export_to_csv(open_ports, opts.output_file, opts.target);
+        } else {
+            export_success = export_to_text(open_ports, opts.output_file, opts.target, opts.ports.size());
+        }
+        
+        if (export_success) {
+            std::cout << "\nResults saved to: " << opts.output_file << "\n";
+        } else {
+            std::cerr << "\nError: Could not write to " << opts.output_file << "\n";
+        }
+    }
+
     return 0;
 }

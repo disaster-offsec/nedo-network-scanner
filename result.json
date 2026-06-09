@@ -1,0 +1,43 @@
+{
+  "scan_info": {
+    "target": "scanme.nmap.org",
+    "total_ports_scanned": 65535,
+    "open_ports_count": 4,
+    "timestamp": 1781035393
+  },
+  "open_ports": [
+    {
+      "port": 22,
+      "is_open": true,
+      "banner": "SSH-2.0-OpenSSH_6.6.1p1 Ubuntu-2ubuntu2.13
+",
+      "os": "Linux (possibly)"
+    },
+    {
+      "port": 80,
+      "is_open": true,
+      "banner": "HTTP/1.1 200 OK
+Date: Tue, 09 Jun 2026 20:02:10 GMT
+Server: Apache/2.4.7 (Ubuntu)
+Accept-Ranges: bytes
+Vary: Accept-Encoding
+Connection: close
+Content-Type: text/html
+
+",
+      "os": "Linux (possibly)"
+    },
+    {
+      "port": 9929,
+      "is_open": true,
+      "banner": "",
+      "os": "Linux (possibly)"
+    },
+    {
+      "port": 31337,
+      "is_open": true,
+      "banner": "",
+      "os": "Linux (possibly)"
+    }
+  ]
+}

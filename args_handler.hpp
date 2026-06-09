@@ -14,10 +14,14 @@ struct ScanOptions {
     std::string target = "127.0.0.1";
     std::vector<int> ports = {22, 80, 443, 8000};
     int timeout_sec = 2;
-    int threads = 0;       // 0 = автоматическое определение
+    int threads = 0;
     bool show_help = false;
     bool has_error = false;
     std::string error_message;
+    
+    // НОВЫЕ ПОЛЯ
+    std::string output_file = "";   // имя файла для экспорта
+    std::string format = "text";     // text, json, csv
 };
 
 class ArgsHandler {

@@ -1,7 +1,7 @@
 CXX = g++
 CXXFLAGS = -std=c++17 -pthread -O2 -Wall
 TARGET = scanner
-OBJS = main.o scanner.o args_handler.o fingerprint.o
+OBJS = main.o scanner.o args_handler.o fingerprint.o export.o
 
 all: $(TARGET)
 
@@ -14,4 +14,6 @@ $(TARGET): $(OBJS)
 clean:
 	rm -f $(OBJS) $(TARGET)
 
-.PHONY: all clean
+rebuild: clean all
+
+.PHONY: all clean rebuild

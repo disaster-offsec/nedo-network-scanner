@@ -68,6 +68,24 @@ ScanOptions ArgsHandler::parse() {
                 return opts;
             }
         }
+        else if (arg == "-o" || arg == "--output") {
+            opts.output_file = get_value(i, "output");
+            if (opts.output_file.empty()) {
+                opts.has_error = true;
+                opts.error_message = "Missing value for " + arg;
+                return opts;
+            }
+        }
+        else if (arg == "-f" || arg == "--format") {
+            opts.format = get_value(i, "format");
+            if (opts.format.empty()) {
+                opts.has_error = true;
+                opts.error_message = "Missing value for " + arg;
+                return opts;
+            }
+            // Приводим к нижнему регистру
+            std::transform(opts.format.begin(), opts.format.end(), opts.format.begin(), ::tolower);
+        }
         else if (is_option(arg)) {
             opts.has_error = true;
             opts.error_message = "Unknown option: " + arg;
@@ -106,7 +124,9 @@ void ArgsHandler::print_help(const char* progname) const {
               << "\nExamples:\n"
               << "  " << progname << " -t 192.168.1.1 -p 22,80,443\n"
               << "  " << progname << " --target scanme.nmap.org --ports 1-1000 --threads 50\n"
-              << "  " << progname << " -t 10.0.0.1 -p -  scan all ports\n";
+              << "  " << progname << " -t 10.0.0.1 -p -  scan all ports\n"
+              << "  -o, --output FILE     Save results to FILE\n"
+              << "  -f, --format FORMAT   Output format: text, json, csv (default text)\n";
 }
 
 bool ArgsHandler::is_option(const std::string& arg) const {
