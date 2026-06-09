@@ -56,56 +56,42 @@ std::string detect_os_from_socket(int sock) {
     TcpFingerprint fp = get_fingerprint_from_socket(sock);
     
     // База сигнатур (реальные данные из nmap и практики)
-    // Формат: {min_ttl, max_ttl, min_win, max_win, mss, wscale, sack, ts, ecn, os_name}
     struct OsSignature {
         int ttl_min, ttl_max;
         int win_min, win_max;
-        int mss;
+        int mss;              // только одно поле MSS
         bool wscale;
         bool sack;
         bool timestamps;
         bool ecn;
         std::string name;
-        int confidence;  // 0-100
+        int confidence;
     };
     
     std::vector<OsSignature> signatures = {
-        // Linux ядро 2.4-2.6
-        {60, 68, 5800, 5900, 1460, false, true, false, false, "Linux 2.4-2.6", 70},
-        // Linux ядро 2.6-3.x
-        {60, 68, 40000, 43000, 1460, false, true, false, false, "Linux 2.6-3.x", 80},
-        // Linux ядро 4.x-5.x (современные)
-        {60, 68, 42000, 43000, 1460, true, true, true, false, "Linux 4.x-5.x", 90},
-        // Linux Ubuntu (специфичный window)
-        {60, 68, 42540, 42540, 1460, true, true, true, false, "Linux (Ubuntu)", 85},
+        // Linux (широкие диапазоны для MSS)
+        {60, 68, 60000, 66000, 0, true, true, true, false, "Linux (possibly)", 80},
+        {60, 68, 42000, 43000, 1460, true, true, true, false, "Ubuntu/Debian Linux", 95},
+        {60, 68, 40000, 44000, 0, true, true, true, false, "Linux", 90},
+        {60, 68, 5800, 5900, 1460, false, true, false, false, "Linux 2.4-2.6", 85},
         
-        // Windows 7/8/10
+        // macOS
+        {60, 68, 65535, 65535, 1460, true, true, true, false, "macOS", 70},
+        
+        // Windows
         {120, 128, 8192, 8192, 1460, true, true, false, false, "Windows 7/8/10", 85},
-        // Windows 10 с обновлениями (большое окно)
-        {120, 128, 65535, 65535, 1460, true, true, false, false, "Windows 10 (latest)", 80},
-        // Windows Server 2008/2012
-        {120, 128, 8192, 16384, 1460, true, true, false, false, "Windows Server", 75},
-        // Windows XP (устаревшая)
-        {120, 128, 65535, 65535, 1460, false, false, false, false, "Windows XP", 60},
+        {120, 128, 65535, 65535, 1460, true, true, false, false, "Windows 10", 80},
+        {120, 128, 16000, 17000, 1460, true, true, false, false, "Windows Server", 75},
         
         // FreeBSD
-        {60, 68, 65535, 65535, 1460, false, false, false, false, "FreeBSD", 75},
-        // FreeBSD с опциями
-        {60, 68, 65535, 65535, 1460, true, true, true, false, "FreeBSD (modern)", 80},
+        {60, 68, 65000, 66000, 1460, false, false, false, false, "FreeBSD", 70},
         
-        // macOS (Darwin)
-        {60, 68, 65535, 65535, 1460, true, true, true, false, "macOS", 80},
-        
-        // Solaris
-        {240, 255, 65535, 65535, 1460, false, false, false, false, "Solaris", 70},
-        
-        // OpenBSD
-        {60, 68, 16384, 16384, 1460, false, false, false, false, "OpenBSD", 75},
-        
-        // Cisco IOS (маршрутизаторы)
-        {240, 255, 4128, 4128, 1460, false, false, false, false, "Cisco IOS", 65},
+        // Остальные
+        {240, 255, 65535, 65535, 1460, false, false, false, false, "Solaris", 60},
+        {60, 68, 16384, 16384, 1460, false, false, false, false, "OpenBSD", 65},
+        {240, 255, 4128, 4128, 1460, false, false, false, false, "Cisco IOS", 55},
     };
-    
+
     // Поиск наилучшего совпадения
     int best_score = 0;
     std::string best_match = "Unknown";
@@ -113,22 +99,24 @@ std::string detect_os_from_socket(int sock) {
     for (const auto& sig : signatures) {
         int score = 0;
         
-        // TTL (самый важный параметр, даёт много очков)
+        // TTL
         if (fp.ttl >= sig.ttl_min && fp.ttl <= sig.ttl_max) {
             score += 40;
         } else if (abs(fp.ttl - (sig.ttl_min + sig.ttl_max)/2) <= 10) {
-            score += 10;  // близко, но не точно
+            score += 10;
         }
         
-        // Window Size (тоже важен)
+        // Window Size
         if (fp.window >= sig.win_min && fp.window <= sig.win_max) {
             score += 30;
         } else if (abs(fp.window - (sig.win_min + sig.win_max)/2) <= 5000) {
             score += 10;
         }
         
-        // MSS
-        if (fp.mss == sig.mss && sig.mss > 0) {
+        // MSS (0 означает "любое значение")
+        if (sig.mss == 0) {
+            score += 15;  // любое MSS подходит
+        } else if (fp.mss == sig.mss) {
             score += 15;
         }
         
@@ -138,7 +126,7 @@ std::string detect_os_from_socket(int sock) {
         if (fp.timestamps == sig.timestamps) score += 5;
         if (fp.ecn == sig.ecn) score += 5;
         
-        // Учитываем уверенность из базы
+        // Учитываем уверенность
         score = score * sig.confidence / 100;
         
         if (score > best_score) {
@@ -152,9 +140,10 @@ std::string detect_os_from_socket(int sock) {
         return "Unknown";
     }
     
-    // Для отладки можно вывести fingerprint
-    // std::cerr << "[DEBUG] TTL=" << fp.ttl << " WIN=" << fp.window 
-    //           << " MSS=" << fp.mss << " score=" << best_score << "\n";
+    // Для отладки
+    std::cerr << "[DEBUG] TTL=" << fp.ttl << " WIN=" << fp.window 
+              << " MSS=" << fp.mss << " score=" << best_score 
+              << " match=" << best_match << "\n";
     
     return best_match;
 }
