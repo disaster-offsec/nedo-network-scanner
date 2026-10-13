@@ -1,3 +1,14 @@
-*.o
-report.*
-scanner
+# Binaries
+/portscanner
+/portscanner.exe
+*.exe
+*.test
+*.out
+
+# Reports
+*.json
+*.csv
+
+# Testdata is part of the repo, at any depth
+!**/testdata/**/*.json
+!**/testdata/**/*.csv
