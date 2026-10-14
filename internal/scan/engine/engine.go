@@ -75,7 +75,7 @@ func scanPort(parentCtx context.Context, target string, port int, timeout time.D
 	
 	result.IsOpen = true
 
-	conn.SetReadDeadline(time.Now().Add(200 * time.Millisecond))
+	conn.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
 	buffer := make([]byte, 2048)
 
 	// Errors are expected: timeout means no banner, EOF means server closed.
@@ -83,7 +83,7 @@ func scanPort(parentCtx context.Context, target string, port int, timeout time.D
 	
 	if n == 0 {
 		// banner is unknown, so try HEAD request
-		conn.SetWriteDeadline(time.Now().Add(200 * time.Millisecond))
+		conn.SetWriteDeadline(time.Now().Add(500 * time.Millisecond))
 		conn.Write([]byte("HEAD / HTTP/1.0\r\n\r\n"))
 		// TODO: probes := map[int]string
 		// depends on port, different banner grabbing approaches
