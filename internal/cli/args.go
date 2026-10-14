@@ -33,9 +33,16 @@ func Parse(args []string) (*Config, error) {
 		return nil, err
 	}
 
+	parsedPorts, warnings, err := parsePorts(ports)
+	if err != nil {
+		return nil, err
+	}
+	_ = warnings   // ignoring for current version
+
 	return &Config{
 		Scan: scan.Options{
 			Target:  target,
+			Ports:   parsedPorts,
 			Timeout: time.Duration(timeout) * time.Second,
 			Threads: threads,
 		},
