@@ -48,5 +48,5 @@ func ToJSON(r Report) ([]byte, error) {
 		},
 		OpenPorts: resultsToJSONPorts(r.Results),
 	}
-	return json.Marshal(out)
+	return json.MarshalIndent(out, "", "  ")
 }
