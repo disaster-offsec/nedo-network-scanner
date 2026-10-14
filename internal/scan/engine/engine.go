@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"portscanner/internal/scan"
+	"portscanner/internal/scan/classify"
+	"portscanner/internal/scan/fingerprint"
 )
 
 // Scan probes the ports specified in opts against opts.Target.
@@ -53,9 +55,9 @@ func Scan(ctx context.Context, opts scan.Options) ([]scan.Result, error) {
 }
 
 // scanPort probes a single TCP port. It returns IsOpen=true if the
-// connection succeeds, and attempts to read a banner. If the server
-// sends nothing on connect, it sends a HEAD request as a fallback.
-// OS fingerprinting is TODO.
+// connection succeeds, attempts to classify the OS via TCP_INFO, and
+// reads a banner. If the server sends nothing on connect, it sends a
+// HEAD request as a fallback.
 func scanPort(parentCtx context.Context, target string, port int, timeout time.Duration) scan.Result {
 	result := scan.Result{Port: port, IsOpen: false}
 	
@@ -74,6 +76,13 @@ func scanPort(parentCtx context.Context, target string, port int, timeout time.D
 	defer conn.Close()
 	
 	result.IsOpen = true
+
+	// Fingerprint must run before banner read: TCP_INFO reflects the
+	// connection state right after the three-way handshake. Reading the
+	// banner can cause the server to send more data and change window/MSS.
+	if fp, err := fingerprint.New().Collect(conn); err == nil {
+		result.OS = classify.OS(fp)
+	}
 
 	conn.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
 	buffer := make([]byte, 2048)
