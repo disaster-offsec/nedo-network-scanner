@@ -2,7 +2,9 @@ package engine
 
 import (
 	"context"
+	"net"
 	"runtime"
+	"strconv"
 	"sync"
 	"time"
 
@@ -50,7 +52,21 @@ func Scan(ctx context.Context, opts scan.Options) ([]scan.Result, error) {
 	return results, nil
 }
 
-// TODO: implement banner grabbing and OS fingerprinting.
-func scanPort(ctx context.Context, target string, port int, timeout time.Duration) scan.Result {
-	return scan.Result{Port: port, IsOpen: false}
+// scanPort probes a single TCP port. It returns IsOpen=true if the
+// connection succeeds. Banner grabbing and OS fingerprinting are TODO.
+func scanPort(parentCtx context.Context, target string, port int, timeout time.Duration) scan.Result {
+	ctx, cancel := context.WithTimeout(parentCtx, timeout)
+	defer cancel()
+	
+	address := net.JoinHostPort(target, strconv.Itoa(port))
+	
+	var d net.Dialer
+	conn, err := d.DialContext(ctx, "tcp", address)
+	if err != nil {
+		return scan.Result{Port: port, IsOpen: false}
+	}
+	
+	defer conn.Close()
+
+	return scan.Result{Port: port, IsOpen: true}
 }
