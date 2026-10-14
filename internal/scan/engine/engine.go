@@ -53,8 +53,12 @@ func Scan(ctx context.Context, opts scan.Options) ([]scan.Result, error) {
 }
 
 // scanPort probes a single TCP port. It returns IsOpen=true if the
-// connection succeeds. Banner grabbing and OS fingerprinting are TODO.
+// connection succeeds, and attempts to read a banner. If the server
+// sends nothing on connect, it sends a HEAD request as a fallback.
+// OS fingerprinting is TODO.
 func scanPort(parentCtx context.Context, target string, port int, timeout time.Duration) scan.Result {
+	result := scan.Result{Port: port, IsOpen: false}
+	
 	ctx, cancel := context.WithTimeout(parentCtx, timeout)
 	defer cancel()
 	
@@ -62,11 +66,35 @@ func scanPort(parentCtx context.Context, target string, port int, timeout time.D
 	
 	var d net.Dialer
 	conn, err := d.DialContext(ctx, "tcp", address)
-	if err != nil {
-		return scan.Result{Port: port, IsOpen: false}
-	}
 	
-	defer conn.Close()
+	if err != nil {
+		return result
+	}
 
-	return scan.Result{Port: port, IsOpen: true}
+	defer conn.Close()
+	
+	result.IsOpen = true
+
+	conn.SetReadDeadline(time.Now().Add(200 * time.Millisecond))
+	buffer := make([]byte, 2048)
+
+	// Errors are expected: timeout means no banner, EOF means server closed.
+	n, _ := conn.Read(buffer)
+	
+	if n == 0 {
+		// banner is unknown, so try HEAD request
+		conn.SetWriteDeadline(time.Now().Add(200 * time.Millisecond))
+		conn.Write([]byte("HEAD / HTTP/1.0\r\n\r\n"))
+		// TODO: probes := map[int]string
+		// depends on port, different banner grabbing approaches
+
+		conn.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
+		n, _ = conn.Read(buffer)
+	}
+
+	if n > 0 {
+		result.Banner = string(buffer[:n])
+	}
+
+	return result
 }
